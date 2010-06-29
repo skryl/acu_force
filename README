@@ -37,6 +37,9 @@ Print all the CLs for a specific issue, along with their descriptions, etc.
 Print all the (present) sprints in a project, along with sprint names, etc.
 ./af -vp 5223
 
+Print the number of the Dev and QA Sprints for this week
+./af -vp 5223 -f "sprint_description:/Dev/QA/"
+
 Print only the issues owned by askryl for a specific sprint.
 ./af -vs 23698 -f "issue_owner:/askryl/"
 

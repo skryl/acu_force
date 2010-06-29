@@ -1,0 +1,70 @@
+#!/usr/bin/ruby
+
+#TODO:
+#get info for root node in tree
+
+require 'acuforce'
+require 'yaml'
+require 'open3'
+
+require 'rubygems'
+require 'mechanize'
+require 'optparse'
+
+DEBUG = false
+
+options = {}
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: af [options]"
+
+  opts.on("-U", "--username [username]", "Acunote username") { |opt| options[:user] = opt }
+  opts.on("-P", "--password [password]", "Acunote password") { |opt| options[:pass] = opt }  
+  opts.on("-p", "--project p1,p2,p3", Array, "Project number/s") { |opt| options[:project] = opt }
+  opts.on("-s", "--sprint s1,s2,s3", Array, "Sprint number/s") { |opt| options[:sprint] = opt }
+  opts.on("-i", "--issue i1,i2,i3",  Array, "Issue number/s") { |opt| options[:issue] = opt }
+  opts.on("-c", "--cl c1,c2,c3", Array, "CL number/s") { |opt| options[:change_list] = opt }
+  opts.on("-r", "--recurse [depth]", Integer, "Recursion depth") { |opt| options[:recurse] = opt }
+  opts.on("-f", "--filter f1,f2,f3", Array, "Search string") { |opt| options[:filter] = opt }
+  opts.on("-v", "--verbose", "Verbose output") { |opt| options[:verbose] = true }
+  opts.on("-u", "--unique", "Unique output") { |opt| options[:unique] = true }
+  opts.on("-d", "--dump [filename]", "Dump output to yaml") { |opt| options[:dump] = opt }
+  opts.on("-h", "--help", "Show this message") { 
+    puts opts 
+    exit
+  }
+end
+
+begin
+  optparse.parse!(ARGV)                                                                                                                                                                                                 
+  pp options if DEBUG
+  mandatory_params = !File.exists?(AcuForce::SESSION_FILE) ? [:user, :pass] : []
+
+  missing = mandatory_params.select {|param| options[param].nil?}
+  if !missing.empty?                                                                                                                                                                                         
+    puts "Missing options: #{missing.join(', ')}\n\n"                                                                                                                                                               
+    puts optparse                                                                                                                                                                                               
+    exit                                                                                                                                                                                                        
+  end            
+rescue OptionParser::ParseError => e
+  puts e
+end
+
+#check perforce availability
+Open3.popen3("p4 monitor show") do |stdin, stdout, stderr|
+  if stderr =~ /P4PASSWD/ 
+    STDERR.puts "Attn: Log into perforce for better performance and extended features"
+  else
+    options[:p4] = true
+  end
+end
+
+#find the param which sits lowest in the traversal order
+#this is the level at which the scrape will start
+main_arg = AcuForce::TRAVERSAL_ORDER.reverse.find do |param| options[param] end
+
+unless main_arg
+  puts optparse
+  exit
+end
+
+AcuForce.new(options).process(main_arg)

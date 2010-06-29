@@ -1,0 +1,61 @@
+AcuForce
+Written by: Alex Skryl (askryl@enovafinancial.com)
+
+Usage: af [options]
+    -U, --username [username]        Acunote username
+    -P, --password [password]        Acunote password
+    -p, --project p1,p2,p3           Project number/s
+    -s, --sprint s1,s2,s3            Sprint number/s
+    -i, --issue i1,i2,i3             Issue number/s
+    -c, --cl c1,c2,c3                CL number/s
+    -r, --recurse [depth]            Recursion depth
+    -f, --filter f1,f2,f3            Search string
+    -v, --verbose                    Verbose output
+    -u, --unique                     Unique output
+    -d, --dump [filename]            Dump output to yaml
+    -h, --help                       Show this message
+
+COMMON USAGE:
+
+Things to consider:
+- Removing the -v option for any of the below examples results in only 
+  the leaf data being printed. This is usefull when trying to pipe 
+  the output to an external command.
+- Passing a username/password is only required if the acunote.session file
+  has not been created. It will be created automatically upon successfull login.
+  The saved session improves performance by eliminating unnecessary log ins 
+  but passing your credentials every time guarantees that the session can be
+  renewed if it's stale.
+- Only present sprints will be traversed for each project.
+
+First time usage. Print all the issues in a sprint, along with issue name, owner, etc.
+./af -U user -P pass -vs 23698
+
+Print all the CLs for a specific issue, along with their descriptions, etc.
+./af -vi 169835
+
+Print all the (present) sprints in a project, along with sprint names, etc.
+./af -vp 5223
+
+Print only the issues owned by askryl for a specific sprint.
+./af -vs 23698 -f "issue_owner:/askryl/"
+
+Print only the issues owned by askryl and srabiela and whose description 
+contains 'customer' for each sprint provided.
+./af -vs 23698,23681 -f "issue_owner:/askryl/srabiela/,issue_description:/address/"
+
+Print all the unique files touched by any CL in the two issues specified.
+./af -i 169439,169835 -ur2
+
+Integrate all the files in all the CLs (non integration CLs) for a specific issue.  
+./af -i 186735 -r2 -uf "change_list_description:no_integrates" | xargs -I$ p4 integrate branch1/$ branch2/$
+
+Prints every issue in a sprint, the Cls for each issue, and the files 
+touched by each CL. This data tree is also dumped to a yaml file. 
+./af -vs 23698 -r3 -d "sprint23698.yml"
+
+
+
+**DON'T DO THIS**
+
+./af -vp XXXX -r[3/4]

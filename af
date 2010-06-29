@@ -1,7 +1,8 @@
 #!/usr/bin/ruby
 
 #TODO:
-#get info for root node in tree
+#Retrieve info for root node/s in the tree
+#Implement a better pretty print
 
 require 'acuforce'
 require 'yaml'

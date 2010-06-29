@@ -1,9 +1,9 @@
 #!/usr/bin/ruby
 
 #TODO:
+#Implement a better pretty print
 #Preserve issue relationships
 #Retrieve info for root node/s in the tree
-#Implement a better pretty print
 #Implement scrapers for CL/file info
 
 require 'acuforce'

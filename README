@@ -47,8 +47,10 @@ contains 'customer' for each sprint provided.
 Print all the unique files touched by any CL in the two issues specified.
 ./af -i 169439,169835 -ur2
 
-Integrate all the files in all the CLs (non integration CLs) for a specific issue.  
-./af -i 186735 -r2 -uf "change_list_description:no_integrates" | xargs -I$ p4 integrate branch1/$ branch2/$
+Integrate all the files in all the CLs (non integration CLs) for a specific issue. 
+Note that all file paths are returned with the depot name prepended. colrm can be used
+to trim the output to a convenient character position. 
+./af -i 186735 -r2 -uf "change_list_description:no_integrates" | colrm 1 30 | args -I$ p4 integrate branch1/$ branch2/$
 
 Prints every issue in a sprint, the Cls for each issue, and the files 
 touched by each CL. This data tree is also dumped to a yaml file. 

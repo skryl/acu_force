@@ -58,6 +58,13 @@ SEP_ROW_MATCHERS = [/Backlogs/, /Present Sprints/, /Future Sprints/, /Past Sprin
 #pipe specific information into external applications. All Error/Attn messages
 #are printed to STDERR so these should not break chaining of output.
 OUTPUT_KEYS = [:number, :path] 
+USE_SEPARATOR = [:issue, :change_list, :file]
+NO_HEADING = [:path]
+SEP_CHAR = "-"
+INDENT_CHAR = "  "
+UNDERLINE_CHAR = "-"
+SEP_LENGTH = 80
+UNDERLINE_LENGTH = 80
 
 
 ##FILTERING##
@@ -150,7 +157,8 @@ def output(tree, arr=nil)
 
   #printing
   if @options[:verbose]
-    pp tree
+    pretty_print2([tree])
+    #pp tree
   else
     k = OUTPUT_KEYS.find { |k| arr.first[k] }
 
@@ -173,6 +181,46 @@ def output(tree, arr=nil)
   end
 end
 
+
+#Pretty
+def pretty_print2(tree, level = 0)
+  indent = (INDENT_CHAR * level)
+  separator = (!SEP_CHAR.empty?) ? indent + SEP_CHAR * (SEP_LENGTH - indent.length/SEP_CHAR.length) : ""
+  underline = (!UNDERLINE_CHAR.empty?) ? indent + UNDERLINE_CHAR * (UNDERLINE_LENGTH - indent.length/UNDERLINE_CHAR.length) : ""
+  rec_flag = false
+  
+  tree.each do |h|
+    #sort the hash by the length of the values while placing the child array at
+    #the end.
+    a = h.sort do |kv1,kv2| 
+      if kv1[1].is_a?(Array) || kv2[1].nil? 
+        1
+      elsif kv2[1].is_a?(Array) || kv1[1].nil?
+        -1
+      else 
+        kv1[1].length <=> kv2[1].length
+      end
+    end
+
+    #iterate over array of hashes, print all string keys, and recurse over child
+    #nodes
+    a.each do |(k,v)|
+      printf indent
+      if v.is_a? Array
+        rec_flag = true
+        puts "#{pluralize(to_heading(k))}:\n#{underline}" unless NO_HEADING.include?(k)
+        #print children
+        pretty_print2(v, level + 1)
+      else
+        printf "#{to_heading(k)}: " unless NO_HEADING.include?(k)
+        #trim value to max length and print       
+        (v && !v.empty?) ? puts(v.split("\n").first) : puts 
+      end
+    end
+    #don't print separator on stack collapse
+    (puts separator if USE_SEPARATOR.include?(a[0])) unless rec_flag
+  end
+end
 
 def login(force = false)
   return true if @logged_in
@@ -423,6 +471,18 @@ def matches_any?(i, filters)
   end
 end
 private :matches_any?
+
+
+def to_heading(sym)
+  sym.to_s.split("_").map {|s| s.capitalize}.join(" ")
+end
+private :to_heading
+
+
+def pluralize(word)
+  word.to_s + "s"
+end
+private :pluralize
 
 
 end

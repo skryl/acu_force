@@ -8,11 +8,9 @@ DEBUG = false
 ##DEPENDENCIES##
 TRAVERSAL_ORDER = [:project, :sprint, :issue, :change_list, :file]
 
-ARG_JMP_TBL = {:project => :load_sprints,
-               :sprint => :load_issues, 
-               :issue => :load_change_lists, 
-               :change_list => :load_files}
-
+VIEW_JMP_TBL = {:project => :load_sprints, :sprint => :load_issues, :issue => :load_change_lists, :change_list => :load_files}
+EDIT_OPS_TBL = {:project => {}, :sprint => {}, :issue => {:delete => :delete_issue, :tag => :tag_issue, :change_status => :cs_issue}}
+NEW_OPS_TBL = {:project => :new_project, :sprint => :new_sprint, :issue => :new_issue}
 
 ##LOGIN##
 SESSION_FILE = "acuforce.session"
@@ -83,7 +81,7 @@ UNDERLINE_LENGTH = 80
 # -- Custom filters can be added here or to FILTER_FILE (yaml format)
 FILTER_FILE = "acuforce.filters"
 PREDEFINED_FILTERS = 
-  {:no_integrates => [:neg, [':\s*\<-','(R|r)ebase','(I|i)ntegrate']]} 
+  {:no_integrates => [:neg, ['\<-','(R|r)ebase','(I|i)ntegrate']]} 
                 
 
 ###############################################################################
@@ -92,6 +90,7 @@ def initialize(options)
   @a = Mechanize.new
   @options = options
   @filters = parse_filters
+  @edits = parse_edits
 end
 
 
@@ -112,17 +111,22 @@ def process(start_node)
     strm_arr = []
     arr.each do |h|
       STDERR.puts "Processing #{nxt_node} for #{node} number #{h[:number]}" if DEBUG
-      h[nxt_node] = send(ARG_JMP_TBL[node], h[:number])
+      h[nxt_node] = send(VIEW_JMP_TBL[node], h[:number])
       #perform filtering
       available_filters = @filters[nxt_node]
       (h[nxt_node] = filter(h[nxt_node], available_filters)) if available_filters
       strm_arr << h[nxt_node]
     end
     arr = strm_arr.flatten
+    #check for edit ops
   end
 
   end_node = TRAVERSAL_ORDER[trv_idx - 1]
-  output(tree, arr)
+  if @options[:verbose]
+    output(tree)
+  else
+    output({node => arr})
+  end
 end
 
 
@@ -148,25 +152,23 @@ end
 #only the leaf node data is printed. This data can be made unique by passing the
 #-u option. Verbose mode can be enable with the -v option, it pretty prints the 
 #full data tree. The -d [FILE] option will dump the full data tree to a yaml file. 
-def output(tree, arr=nil)
-  #no leaf nodes
-  if arr && arr.empty? && !@options[:verbose]
-    STDERR.puts "Attn: No leaf nodes returned, try the --verbose option for more details"
-    return
-  end
-
+def output(tree)
   #printing
   if @options[:verbose]
     pretty_print2([tree])
     #pp tree
   else
+    arr = tree.values.first
+    #no leaf nodes
+    if arr && arr.empty? && !@options[:verbose]
+      STDERR.puts "Attn: No leaf nodes returned, try the --verbose option for more details"
+      return
+    end
     k = OUTPUT_KEYS.find { |k| arr.first[k] }
-
     #make output unique
     if @options[:unique] 
       arr = arr.inject([]) { |a, h| a << h[k] }.uniq
     end
-
     #print hash
     arr.each do |ln|
       ln.is_a?(Hash) ? puts(ln[k]) : puts(ln.to_s)
@@ -397,7 +399,8 @@ def parse_filters
         split_pos = f.index(":")
         node_key, raw_regexps = f[0...split_pos], f[split_pos + 1..-1]
         
-        node = TRAVERSAL_ORDER.find {|n| node_key.index(n.to_s) }.to_s
+        node = TRAVERSAL_ORDER.find {|n| node_key.index(n.to_s) == 0 }.to_s
+        #TODO: make a lookup table for the keys to avoid syntax checks
         key =  node_key[node.length + 1..-1]
         unless node && raw_regexps
           STDERR.puts "Attn: invalid filter <#{f}>"
@@ -434,6 +437,28 @@ def parse_filters
     end
 end
 private :parse_filters
+
+
+#validate edit operations 
+def parse_edits
+  edits = {}
+  if raw_edits = @options[:edit]
+    raw_edits.each do |re|
+      re.strip!
+      #only the first colon matters here
+      split_pos = re.index(":")
+      node_op, data = re[0...split_pos], re[split_pos + 1..-1]
+
+      #lookup node and operation in appropriate tables, this avoids syntax checks
+      node = TRAVERSAL_ORDER.find {|n| node_op.index(n.to_s) == 0 }
+      op =  node ? EDIT_OPS_TBL[node].keys.find {|op| op == node_op[node.to_s.length + 1..-1].to_sym} : nil
+
+      edits[node] = {op => data} if node && op
+    end
+  else {}
+  end
+  pp edits
+end
 
 
 #Retrieves the requested page and verifies destination url to make sure there

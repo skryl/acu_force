@@ -1,10 +1,11 @@
 #!/usr/bin/ruby
 
 #TODO:
-#Preserve issue relationships
+#Preserve issue relationships for pretty print
+#Create/Delete/Tag/Change Status for Issues
+#More involved checks for P4 availability
 #Retrieve info for root node/s in the tree
 #Implement scrapers for CL/file info
-#More involved checks for P4 availability
 
 require 'acuforce'
 require 'yaml'
@@ -26,6 +27,7 @@ optparse = OptionParser.new do |opts|
   opts.on("-s", "--sprint s1,s2,s3", Array, "Sprint number/s") { |opt| options[:sprint] = opt }
   opts.on("-i", "--issue i1,i2,i3",  Array, "Issue number/s") { |opt| options[:issue] = opt }
   opts.on("-c", "--cl c1,c2,c3", Array, "CL number/s") { |opt| options[:change_list] = opt }
+  opts.on("-e", "--edit [ops]", Array, "Edit Operations") { |opt| options[:edit] = opt }
   opts.on("-r", "--recurse [depth]", Integer, "Recursion depth") { |opt| options[:recurse] = opt }
   opts.on("-f", "--filter f1,f2,f3", Array, "Search string") { |opt| options[:filter] = opt }
   opts.on("-v", "--verbose", "Verbose output") { |opt| options[:verbose] = true }
@@ -54,6 +56,15 @@ begin
       end
     end
   end            
+
+  #check for dangerous activity
+  if options[:recurse] && options[:edit]
+    begin
+      STDERR.printf "Attn: You are about to perform a recursive edit, are you sure you know what you're doing? [Yes/No] "
+      response = gets
+    end until ["Yes","No"].include? response.strip!
+    exit if response == "No"
+  end
 rescue OptionParser::ParseError => e
   puts e
 end

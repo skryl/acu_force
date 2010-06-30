@@ -20,8 +20,8 @@ options = {}
 optparse = OptionParser.new do |opts|
   opts.banner = "Usage: af [options]"
 
-  opts.on("-U", "--username [username]", "Acunote username") { |opt| options[:user] = opt }
-  opts.on("-P", "--password [password]", "Acunote password") { |opt| options[:pass] = opt }  
+  opts.on("-U", "--username [username]", "Acunote username") { |opt| options[:username] = opt }
+  opts.on("-P", "--password [password]", "Acunote password") { |opt| options[:password] = opt }  
   opts.on("-p", "--project p1,p2,p3", Array, "Project number/s") { |opt| options[:project] = opt }
   opts.on("-s", "--sprint s1,s2,s3", Array, "Sprint number/s") { |opt| options[:sprint] = opt }
   opts.on("-i", "--issue i1,i2,i3",  Array, "Issue number/s") { |opt| options[:issue] = opt }
@@ -40,13 +40,19 @@ end
 begin
   optparse.parse!(ARGV)                                                                                                                                                                                                 
   pp options if DEBUG
-  mandatory_params = !File.exists?(AcuForce::SESSION_FILE) ? [:user, :pass] : []
+  mandatory_params = !File.exists?(AcuForce::SESSION_FILE) ? [:username, :password] : []
 
   missing = mandatory_params.select {|param| options[param].nil?}
-  if !missing.empty?                                                                                                                                                                                         
+  unless missing.empty?                                                                                                                                                                                         
     puts "Missing options: #{missing.join(', ')}\n\n"                                                                                                                                                               
-    puts optparse                                                                                                                                                                                               
-    exit                                                                                                                                                                                                        
+    missing.each do |param|
+      printf "#{param}: "
+      if param.to_s =~ /password/
+        `stty -echo`; options[param] = gets.strip;`stty echo`;puts
+      else
+        options[param] = gets.strip
+      end
+    end
   end            
 rescue OptionParser::ParseError => e
   puts e

@@ -58,9 +58,9 @@ SEP_ROW_MATCHERS = [/Backlogs/, /Present Sprints/, /Future Sprints/, /Past Sprin
 #pipe specific information into external applications. All Error/Attn messages
 #are printed to STDERR so these should not break chaining of output.
 OUTPUT_KEYS = [:number, :path] 
-USE_SEPARATOR = [:issue, :change_list, :file]
+NO_SEPARATOR = [:file]
 NO_HEADING = [:path]
-SEP_CHAR = "-"
+SEP_CHAR = " "
 INDENT_CHAR = "  "
 UNDERLINE_CHAR = "-"
 SEP_LENGTH = 80
@@ -182,12 +182,14 @@ def output(tree, arr=nil)
 end
 
 
-#Pretty
-def pretty_print2(tree, level = 0)
+#Pretty ugly pretty print
+def pretty_print2(tree, level = 0, parent = nil)
   indent = (INDENT_CHAR * level)
   separator = (!SEP_CHAR.empty?) ? indent + SEP_CHAR * (SEP_LENGTH - indent.length/SEP_CHAR.length) : ""
   underline = (!UNDERLINE_CHAR.empty?) ? indent + UNDERLINE_CHAR * (UNDERLINE_LENGTH - indent.length/UNDERLINE_CHAR.length) : ""
-  rec_flag = false
+  no_sep = NO_SEPARATOR.include?(parent)
+  #used to avoid printing markup during stack collapse
+  rec_flg = false
   
   tree.each do |h|
     #sort the hash by the length of the values while placing the child array at
@@ -198,29 +200,31 @@ def pretty_print2(tree, level = 0)
       elsif kv2[1].is_a?(Array) || kv1[1].nil?
         -1
       else 
-        kv1[1].length <=> kv2[1].length
+        #sort hash keys in alph order
+        kv1[0].to_s <=> kv2[0].to_s
       end
     end
 
-    #iterate over array of hashes, print all string keys, and recurse over child
-    #nodes
     a.each do |(k,v)|
       printf indent
       if v.is_a? Array
-        rec_flag = true
+        rec_flg = true
         puts "#{pluralize(to_heading(k))}:\n#{underline}" unless NO_HEADING.include?(k)
         #print children
-        pretty_print2(v, level + 1)
+        pretty_print2(v, level + 1, k)
       else
         printf "#{to_heading(k)}: " unless NO_HEADING.include?(k)
         #trim value to max length and print       
         (v && !v.empty?) ? puts(v.split("\n").first) : puts 
       end
     end
-    #don't print separator on stack collapse
-    (puts separator if USE_SEPARATOR.include?(a[0])) unless rec_flag
+    #record separator
+    (puts separator unless no_sep) unless rec_flg
   end
+  #list separator
+  puts separator unless rec_flg
 end
+
 
 def login(force = false)
   return true if @logged_in
@@ -233,20 +237,20 @@ def login(force = false)
   end
 
   #In case force login is called without credentials
-  return false unless @options[:user] && @options[:pass]
+  return false unless @options[:username] && @options[:password]
 
   #try to log in
   p = get_page(LOGIN_URL) 
   STDERR.puts "Navigated to '#{p.title}'" if DEBUG
 
   form = p.forms.first
-  form[LOGIN_FIELDS[0]] = @options[:user]
-  form[LOGIN_FIELDS[1]] = @options[:pass]
+  form[LOGIN_FIELDS[0]] = @options[:username]
+  form[LOGIN_FIELDS[1]] = @options[:password]
   p = form.submit(form.buttons.first)
 
   unless p.uri.to_s ==  HOME_URL
     STDERR.puts "Error: Bad login!"
-    return false
+    exit
   end
   STDERR.puts "Navigated to '#{p.title}'" if DEBUG
 
@@ -437,7 +441,7 @@ private :parse_filters
 #(assuming credentials are passed in as arguments) and the page will be retrieved 
 #again. 
 def get_page(url, matcher = /.*/, retry_count = 1)
-  creds = @options[:user] && @options[:pass]
+  creds = @options[:username] && @options[:password]
 
   begin
     page = @a.get(url)

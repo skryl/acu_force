@@ -57,7 +57,8 @@ SEP_ROW_MATCHERS = [/Backlogs/, /Present Sprints/, /Future Sprints/, /Past Sprin
 #are printed to STDERR so these should not break chaining of output.
 OUTPUT_KEYS = [:number, :path] 
 NO_SEPARATOR = [:file]
-NO_HEADING = [:path]
+NO_HEADING = [:path, :state]
+IN_LINE = [:path]
 SEP_CHAR = " "
 INDENT_CHAR = "  "
 UNDERLINE_CHAR = "-"
@@ -217,7 +218,8 @@ def pretty_print2(tree, level = 0, parent = nil)
       else
         printf "#{to_heading(k)}: " unless NO_HEADING.include?(k)
         #trim value to max length and print       
-        (v && !v.empty?) ? puts(v.split("\n").first) : puts 
+        content = v ? (v.split("\n").first) : "" 
+        IN_LINE.include?(k) ? printf("#{content.strip}") : puts(content)
       end
     end
     #record separator
@@ -375,8 +377,10 @@ def load_files(cl_number)
 
     #cleanup lines
     cl_files = p4_lines.inject([]) do |cl_files, l|
-      l =~ /(\/\/.*)#/
-      $1 ? (cl_files << {:path => $1}) : cl_files
+      l =~ /(\/\/.*)#\d*\s*(.*)/
+      path = $1
+      state = $2.strip
+      path ? (cl_files << {:path => path, :state => state}) : cl_files
     end
   else 
     #TODO: implement scraper 
@@ -455,9 +459,15 @@ def parse_edits
 
       edits[node] = {op => data} if node && op
     end
+
+    if DEBUG
+      puts "Raw edits: " 
+      pp raw_edits
+      puts "Parsed edits: "
+      pp edits
+    end
   else {}
   end
-  pp edits
 end
 
 

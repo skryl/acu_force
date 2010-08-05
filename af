@@ -1,6 +1,12 @@
 #!/usr/bin/ruby
 
+#load dependency paths (makes this portable and allows the user to symlink to
+#the script... this will not work for relative symlinks)
+THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+$LOAD_PATH.unshift(File.dirname(THIS_FILE))
+
 #TODO:
+#Finish inline pretty print option
 #Preserve issue relationships for pretty print
 #Create/Delete/Tag/Change Status for Issues
 #More involved checks for P4 availability

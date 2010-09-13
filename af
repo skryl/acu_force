@@ -47,6 +47,16 @@ end
 
 begin
   optparse.parse!(ARGV)                                                                                                                                                                                                 
+
+  #find the param which sits lowest in the traversal order
+  #this is the level at which the scrape will start
+  main_arg = AcuForce::TRAVERSAL_ORDER.reverse.find do |param| options[param] end
+
+  unless main_arg
+    puts optparse
+    exit
+  end
+
   pp options if DEBUG
   mandatory_params = !File.exists?(AcuForce::SESSION_FILE) ? [:username, :password] : []
 
@@ -75,22 +85,16 @@ rescue OptionParser::ParseError => e
   puts e
 end
 
+
 #check perforce availability
-Open3.popen3("p4 monitor show") do |stdin, stdout, stderr|
-  if stderr =~ /P4PASSWD/ 
-    STDERR.puts "Attn: Log into perforce for better performance and extended features"
+Open3.popen3("p4 login -s") do |stdin, stdout, stderr|
+  if stderr.gets =~ /command not found/
+    STDERR.puts "Attn: could not find p4 binary, log into perforce server for better performance and extended features"
+  elsif !(stdout.gets =~ /ticket expires/)
+    STDERR.puts "Attn: not logged into perforce, log in for better performance and extended features"
   else
     options[:p4] = true
   end
-end
-
-#find the param which sits lowest in the traversal order
-#this is the level at which the scrape will start
-main_arg = AcuForce::TRAVERSAL_ORDER.reverse.find do |param| options[param] end
-
-unless main_arg
-  puts optparse
-  exit
 end
 
 AcuForce.new(options).process(main_arg)

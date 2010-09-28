@@ -1,6 +1,20 @@
 AcuForce
 Written by: Alex Skryl (askryl@enovafinancial.com)
 
+AcuForce is a heirarchial Acunote scraper with Perforce integration. It is able
+to extract Project/Sprint/Task data and present it in a parsable and/or human
+readable tree structure. It also provides support for custom or predefined regex
+filters for trimming output and creating powerful search queries.
+
+
+Requirements:
+mechanize (gem)
+
+
+###############################################################################
+#                                  USAGE                                      #
+###############################################################################
+
 Usage: af [options]
     -U, --username [username]        Acunote username
     -P, --password [password]        Acunote password
@@ -15,27 +29,19 @@ Usage: af [options]
     -d, --dump [filename]            Dump output to yaml
     -h, --help                       Show this message
 
-COMMON USAGE:
 
-Things to consider:
-- Removing the -v option for any of the below examples results in only 
-  the leaf data being printed. This is usefull when trying to pipe 
-  the output to an external command.
-- Passing a username/password is only required if the acunote.session file
-  has not been created. It will be created automatically upon successfull login.
-  The saved session improves performance by eliminating unnecessary log ins 
-  but passing your credentials every time guarantees that the session can be
-  renewed if it's stale.
-- Only present sprints will be traversed for each project.
-
-First time usage. Print all the issues in a sprint, along with issue name, owner, etc.
-./af -U user -P pass -vs 23698
-
-Print all the CLs for a specific issue, along with their descriptions, etc.
-./af -vi 169835
+###############################################################################
+#                                  EXAMPLES                                   #
+###############################################################################
 
 Print all the (present) sprints in a project, along with sprint names, etc.
 ./af -vp 5223
+
+Print all the issues in a sprint, along with issue name, owner, etc.
+./af -vs 23698
+
+Print all the CLs for a specific issue, along with their descriptions, etc.
+./af -vi 169835
 
 Print the number of the Dev and QA Sprints for this week
 ./af -vp 5223 -f "sprint_description:/Dev/QA/"
@@ -50,17 +56,70 @@ contains 'customer' for each sprint provided.
 Print all the unique files touched by any CL in the two issues specified.
 ./af -i 169439,169835 -ur2
 
-Integrate all the files in all the CLs (non integration CLs) for a specific issue. 
-Note that all file paths are returned with the depot name prepended. colrm can be used
-to trim the output to a convenient character position. 
-./af -i 186735 -r2 -uf "change_list_description:no_integrates" | colrm 1 30 | xargs -I$ p4 integrate branch1/$ branch2/$
+Print all the unique files touched by any CL which is part of the issue provided
+but use the predefined filter 'no_integrates' to filter results. 
+./af -i 186735 -ur2 -f "change_list_description:no_integrates" 
+
+Add some bash-fu and the above command can...
+
+Integrate all the files in all the CLs (non integration CLs) for a specific
+issue.  Note that all file paths are returned with the depot name prepended.
+colrm can be used to trim the output to a convenient character position. 
+(above command) | colrm 1 30 | xargs -I$ p4 integrate branch1/$ branch2/$
 
 Prints every issue in a sprint, the Cls for each issue, and the files 
 touched by each CL. This data tree is also dumped to a yaml file. 
 ./af -vs 23698 -r3 -d "sprint23698.yml"
 
 
+###############################################################################
+#                                  FILTERING                                  #
+###############################################################################
 
-**DON'T DO THIS**
+How Filters Work (extract from code comments):
 
+Filters for any key in any data struct can be added here. They should have the
+form "filter_name" => [:pos/:neg,  ['regexp','regexp',...]], notice that all
+regular expressions are in single quotes. When applied, a positive filter will
+return all items which match any of the regular expressions in the filter. A
+negative filter will return all items which match none of the regular
+expressions. The behavior is equivalent to the '-v' option in grep.
+
+filter guidelines:
+ -- A filter type (negative or positive) is required 
+ -- No mixing of (neg/pos) matchers is allowed within a single filter
+ -- Filtering only works on text fields
+ -- Custom filters can be added here or to FILTER_FILE (yaml format)
+
+A predefined filter can be added to a yml formatted filter file or straight to
+acuforce.rb. FILTER_FILE defines the path name of the yml filter file. 
+PREDEFINED_FILTERS is the hash that contains all the predefined filters. 
+
+
+###############################################################################
+#                                  GOTCHAS                                    #
+###############################################################################
+
+Things to keep in mind:
+- AcuForce relies on p4 to extract all the files affected by a CL. (This
+  dependency will go away as soon as I write a good scraper for the Acunote's CL
+  pages). A warning message will let the user know if p4 could not be found or
+  the user is not logged into the perforce server.
+- Removing the -v option for any of the above examples results in only 
+  the leaf data being printed. This is usefull when trying to pipe 
+  the output to an external command. Any error or warning messages are written
+  to stderr so stdout should always be a clean list of CLs, file paths, etc.
+- Passing a username/password is not required. If an acunote.session file
+  doesn't exist the user/pass combo will be requested via stdin. The
+  acunote.sessin file is created automatically as soon as the script
+  successfully logs into acunote.
+- Only active sprints will be traversed for any project (I'll make this an
+  option later).
+
+
+###############################################################################
+#                                  BEWARE                                     #
+###############################################################################
+
+Don't do this:
 ./af -vp XXXX -r[3/4]

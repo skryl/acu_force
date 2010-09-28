@@ -9,7 +9,6 @@ $LOAD_PATH.unshift(File.dirname(THIS_FILE))
 #Finish inline pretty print option
 #Preserve issue relationships for pretty print
 #Create/Delete/Tag/Change Status for Issues
-#More involved checks for P4 availability
 #Retrieve info for root node/s in the tree
 #Implement scrapers for CL/file info
 

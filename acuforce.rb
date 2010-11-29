@@ -1,6 +1,9 @@
 require 'yaml'
 require 'pp'
 
+THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+THIS_DIR = File.dirname(THIS_FILE)
+
 class AcuForce
 
 DEBUG = false
@@ -13,7 +16,7 @@ EDIT_OPS_TBL = {:project => {}, :sprint => {}, :issue => {:delete => :delete_iss
 NEW_OPS_TBL = {:project => :new_project, :sprint => :new_sprint, :issue => :new_issue}
 
 ##LOGIN##
-SESSION_FILE = "acuforce.session"
+SESSION_FILE = "#{THIS_DIR}/acuforce.session"
 LOGIN_URL = "https://acunote.cashnetusa.com/login"
 HOME_URL = "https://acunote.cashnetusa.com/"
 LOGIN_FIELDS = ['login[username]', 'login[password]']
